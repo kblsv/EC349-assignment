@@ -1,0 +1,122 @@
+---
+title: "EC349 Individual Project"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Science Methodology
+
+For this project I have selected John Rollins' General DS Methodology. 
+
+The reasons for that are as follows: 
+* Separate emphasis on analytic approach. Deep exploration of analytics and examining of data before preparing it is valuable when we have multiple datasets where different variables could have an impact on user reviews. It is crucial to examine any preliminary trends and correlations to see which variables are more relevant, and which ones may create unneccessary noise that will limit predictability.
+* Explicit separation of data requirements and collection, unlike in CRISP-DM which has a broad Data understanding stage. Useful for analysis of types of data needed, which is relevant for handling Yelp's diverse and complex datasets.
+* Tailored data preparation. CRISP-DM may not delve as deeply into specific difficulties in multifaceted datasets. This is important as Yelp's datasets are complex and have unstructured text and different business and user attributes.
+* CRISP-DM and others may be closer to industry approach, whereas this project is for academic purposes.
+
+I applied this method in the following ways:
+* 
+
+## Business Understanding
+
+The goal is to predict user reviews (the amount of stars given by a user to a business) based on data from Yelp. 
+
+## Analytic Approach
+
+Firstly, it is important to see how the data can be used to make that prediction. This can be done through examining trends and correlations between stars and other variables. 
+
+# Descriptive analytics
+
+I lay the foundation for predictive modelling by examining relevant data. For example, I examine the distributions and whether data is skewed.
+
+Firstly, examine the variable of interest: 'stars' in review_data_small.
+The mean is 3.748 and median is 4, suggesting that ratings overall are skewed towards the higher end of the 1 to 5 scale.
+```{r}
+summary(review_data_small$stars)
+```
+Additionally, in this dataset, 'useful', 'funny', and 'cool' indicate the number of times other users found the review useful, funny, or cool, which may be relevant. As these are direct reactions to the review, this may be more relevant than, for example, user-level counts of 'useful', 'funny', and 'cool' in the user_data_small dataset.
+```{r}
+summary(review_data_small$useful)
+summary(review_data_small$funny)
+summary(review_data_small$cool)
+```
+Given that both the 1st quartile and median for all three is 0, as well as that 3rd quartile for two of them is 0, suggests that there is a high level of sparsity in the feedback data.
+
+Considering the large number of reviews don't receive feedback, it is useful to look other data that may predict stars in reviews, outside of the review_data_small dataset.
+
+For example, user history may affect the stars they leave. This includes review_count and average_stars in user_data_small.
+
+```{r}
+summary(user_data_small$review_count)
+summary(user_data_small$average_stars)
+```
+The review_count data ranges broadly, with a small number of users who are highly active. The more active a user is, the more nuanced their reviews may be and they may have consistent rating behaviours, which could affect 'stars'. 
+The average_stars portrays a slight skew in distribution, where most users rate positively. This data can provide context on a user's rating behaviour, which may predict their future ratings. 
+
+Visualising the distribution of Stars Ratings confirms the skewness. The most popular rating is 5, followed by 4 and then 1. This may be explained by the fact that people tend to leave reviews when they had a particularly positive experience, or a very negative one. There may be a bias towards positive reviews in the data. 
+```{r}
+# Stars histogram
+ggplot(review_data_small, aes(x=stars)) +
+  geom_histogram(binwidth=1, fill='blue', color='black') +
+  ggtitle("Distribution of Stars Ratings")
+```
+
+```{r}
+# Review count and average stars histograms
+library(ggplot2)
+
+ggplot(user_data_small, aes(x = review_count)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  ggtitle("Distribution of Review Count") +
+  xlab("Review Count") +
+  ylab("Frequency")
+
+ggplot(user_data_small, aes(x = average_stars)) +
+  geom_histogram(binwidth = 0.1, fill = "green", color = "black") +
+  ggtitle("Distribution of Average Stars") +
+  xlab("Average Stars") +
+  ylab("Frequency")
+```
+The histograms for review count and average stars confirm previous observations about skewness. 
+For average stars, the distribution indicates that users are more likely to have extreme ratings (either very high or very low). 
+The review count has a long-tail distribution with a small number of users having a high number of reviews and a vast majority having small number of reviews. For predicting stars, the number of reviews may be less predictive for users with fewer reviews since the average rating could be significantly influenced by a small number of extreme reviews.
+
+# Diagnostic Analytics
+
+It is important to consider **why** the star ratings are a certain way, which we can do by also including business_data into our analysis and seeing correlations between different variables. 
+
+Correlations between stars and other variables in review_data_small are quite weak, suggesting these may be poor predictors of 'stars'. However, this does not mean they have no predictive power at all and they may still contribute to the model.
+```{r}
+correlation_useful <- cor(review_data_small$stars, review_data_small$useful, use = "complete.obs")
+correlation_funny <- cor(review_data_small$stars, review_data_small$funny, use = "complete.obs")
+correlation_cool <- cor(review_data_small$stars, review_data_small$cool, use = "complete.obs")
+print(correlation_useful)
+print(correlation_funny)
+print(correlation_cool)
+```
+
+To calculate correlation vectors between 'stars' and other datasets, I rename any conflicting columns and merge review_data_small with each other dataset that contains int data based on user_id.
+
+When merging review and user data, the following correlations between 'stars' and variables in user data can be observed: 
+```{r}
+print(corr_user)
+```
+Here most variables also have a relatively weak correlation, except for average_stars, which have a correlation of 0.58. 
+
+Correlation coefficient between 'stars' and variables in 'compliment_count' in tip_data:
+
+## Data Understanding & Organisation
+
+
+
+## Data and Method
+
+There are 5 datasets. We observe the number of starts given by a user, which means we can perform supervised learning.
+
+While it is possible to only use the data from User Reviews and make interpretation easier, we may have an issue of underfitting as the model is too simple (e.g. linear, when dataset follows a curved distribution), which may worsen our prediction. If we use all data that is available, it may lead to a flexible model which can fit the data better. However, as the model is made more complicated, variance will increase and it may start fitting noise, increasing Mean-Squared Error (MSE). Therefore, there is another trade-off between bias and variance. 
+
+It is important to pick data that is most relevant 
