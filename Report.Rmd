@@ -108,6 +108,25 @@ print(corr_user)
 Here most variables also have a relatively weak correlation, except for average_stars, which have a correlation of 0.58. 
 
 Correlation coefficient between 'stars' and variables in 'compliment_count' in tip_data:
+```{r}
+print(corr_tip)
+```
+
+In business data, there are a lot of variables and while all of these could improve prediction, more flexible models reduce bias but increase variance and MSE. Thus, it may be important to focus more on variables like attributes within business, as opposed to latitude or longitude. 
+
+For numerical variables in business_data, business_stars seems to have a strong correlation with 'stars'. 
+
+```{r}
+print(corr_numerical_business)
+```
+
+I also look at categorical variables that include 'True' and 'False' and some other simple categories. Upon examining the dataset, some attributes (such as HairSpecializesIn) have more than a 100 unique categorisations, so I focus only on those that have a few, such as 'True' and 'False', such as Open24Hours. Many of them also have 'None' which I convert to NA.
+```{r}
+print(corr_binary_business)
+```
+The correlations coefficients suggest an overall weak to moderate relationship between these business attributes and stars. 
+
+Most variables across datasets have a mixed and small relationship with stars. Hence, our next step would be to take Predictive Analytics approach. 
 
 ## Data Understanding & Organisation
 
