@@ -176,8 +176,5 @@ corr_binary_business <- sapply(corr_binary_business_variables, function(attr) {
   cor(attributes_df[[attr]], attributes_df$stars, use = "complete.obs")
 })
 
-print(corr_binary_business)
-
-
-
+# Modelling
 

@@ -130,7 +130,53 @@ Most variables across datasets have a mixed and small relationship with stars. H
 
 ## Data Understanding & Organisation
 
+# Data Requirements
+Since it is hard to establish relationships based on descriptive and diagnostic approaches, I use some data from more than one dataset. I definitely include data that had strong/moderate correlations. I also use other data since correlation does not imply causation and other variables may still serve predictive power. However, I focus more on data that is likely to be relevant, such as informaiton about the user, rather than check-in data, to reduce variance and manage complexity.
 
+# Data Collection
+
+Secondary data is collected on Yelp. Due to crashing and no progress in installation of original datasets, small datasets are used.
+
+Some variables have incomplete or unavailable data. 
+
+# Data Understanding 
+There are 5 datasets.
+
+# Data Preparation
+
+## Validation & Deployment
+
+# Modelling
+In order to minimise the risk of overfitting (and thus improve predictability) and computational resources overload, I start with a model with few predictors that are hypothetically likely to impact 'stars'. This will also allow me to understand the impact of each new variable I add iteratively. 
+
+The variables that have had strong or moderate correlation (bigger than 0.1) with 'stars' may have good predictive power. These include:
+*average_stars in user_data_small (correlation coefficient of 0.58)
+*business_stars (0.49), DriveThru (-0.21), and Open24Hours (-0.26) in business_data
+
+These variables could predict 'stars' due to various explanations:
+*average stars of a user may be a strong indicator of their rating behaviour as it is possible that users who generally give higher/lower ratings will continue to do so
+*a user's rating may align closely with the general consensus of other users represented by business stars
+*DriveThru may have negative correlation with stars potentially due to the type of business being of poorer quality, such as fast food restaurants
+*Open24Hours may be negatively correlated with stars due to poorer quality of service during off-peak hours, providing insights into how operational hours may impact user perceptions
+
+
+
+
+Supervised learning with shrinkage methods. OLS estimator would perform poorly in MSE due to high variance and overfitting. Since we care about predicting and not interpretability.
+
+We have three methods to pick from: 
+OLS - no bc
+Ridge - yes bc
+LASSO - no bc
+Possible to combine ridge and LASSO but no - why not? 
+
+To pick the penalisation parameter, I perform validation
+
+# Evaluation 
+
+# Deployment
+
+# Feedback
 
 ## Data and Method
 
@@ -139,3 +185,7 @@ There are 5 datasets. We observe the number of starts given by a user, which mea
 While it is possible to only use the data from User Reviews and make interpretation easier, we may have an issue of underfitting as the model is too simple (e.g. linear, when dataset follows a curved distribution), which may worsen our prediction. If we use all data that is available, it may lead to a flexible model which can fit the data better. However, as the model is made more complicated, variance will increase and it may start fitting noise, increasing Mean-Squared Error (MSE). Therefore, there is another trade-off between bias and variance. 
 
 It is important to pick data that is most relevant 
+
+## Biggest challenge
+
+Preparing data. Business data was especially complex, with many variables in character form when they can be in binary form, and some nested sections which required extracting to perform analysis. 
