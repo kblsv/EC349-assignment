@@ -159,19 +159,48 @@ These variables could predict 'stars' due to various explanations:
 *DriveThru may have negative correlation with stars potentially due to the type of business being of poorer quality, such as fast food restaurants
 *Open24Hours may be negatively correlated with stars due to poorer quality of service during off-peak hours, providing insights into how operational hours may impact user perceptions
 
+The value I am trying to predict is categorical and discrete. 'stars' are not continuous and are classified into 5 groups: 1, 2, 3, 4, and 5 stars. A linear model like Ridge or LASSO regression may not limit predictions to these groups. Hence, I use a non-linear model, specifically multinomial logit. Furthermore, the ratings are ordered so I will also use an ordered logit. 
 
+Firstly, I split the model1_data dataset into test and training using sample(). The test dataset, test_data, contains 10,000 observations, whereas the train dataset, train_data, contains 138,805 observations.
 
+Upon the first attempt, the following error was produced:
+> logit_model1 <- polr(stars ~ average_stars + business_stars + DriveThru + Open24Hours, data = train_data, method = 'logistic')
+Error in polr(stars ~ average_stars + business_stars + DriveThru + Open24Hours,  : 
+  attempt to find suitable starting values failed
+In addition: Warning messages:
+1: glm.fit: algorithm did not converge 
+2: glm.fit: fitted probabilities numerically 0 or 1 occurred 
 
-Supervised learning with shrinkage methods. OLS estimator would perform poorly in MSE due to high variance and overfitting. Since we care about predicting and not interpretability.
+This may potentially be due to the number of missing (NA values) or their combination.
 
-We have three methods to pick from: 
-OLS - no bc
-Ridge - yes bc
-LASSO - no bc
-Possible to combine ridge and LASSO but no - why not? 
+When examining each of them on their own, it works out but some trends can be seen. Across all of them, average_stars and business_stars seem to have significant coefficients and high t-values. On the other hand, when observed separately, each of Open24Hours and DriveThru seem to be unsignificant. 
 
-To pick the penalisation parameter, I perform validation
+In terms of measures of fit such as residual deviance and AIC, logit_model11 has the lowest (970.79 and 984.79 respectively) suggesting it might be the best in terms of balancing fit and complexity. 
 
+Suppose \( Y \in \{1, 2, 3, 4, 5\} \)
+
+```{r}
+summary(logit_model11)
+summary(logit_model12)
+summary(logit_model13)
+summary(logit_model14)
+```
+
+In each case there is a large amount of missing observations that get removed, potentially causing bias in coefficients. When using logit model14 with just average_stars, there are 1110199 missing observations, however when just analysing business_data there are no missing observations. This suggests that majority of missing values come from average_stars.
+
+It is difficult to decide if missing data should be dealt with imputation or if it should be ignored. It is possible that Yelp review data has missing at random, but to be sure I observe patterns of missing data more closely.  
+
+Upon close observation, stars and business_stars are the only variables so far in the model that are not missing data. Imputation is possible e.g. for average_stars I can substitute all NA values with mean or median. However, this means imputing around a million observations when average_stars in the original user_data_small dataset only has around 400,000 observations. Thus putting a mean/median for the missing observations can significantly skew the data from its true distribution or introduce biases. Furthermore, there is not contextual information about why the data is missing. 
+
+As a result of that, I introduce other variables that are not strongly correlated from previous diagnostic analytic approach, but they may have less missing values and still contain some predictive power. The data for this new, more flexible model is stored in model2_data. This doesn't include tip_data and checkin_data due to a many-to-many relationship error and the fact that, for example, compliment_count had very low correlation with 'stars' so the predictability of the model isn't significantly worsened.
+
+Before using a more complex, combined final model, I initially conduct regressions between 'stars' and all variables within each separate dataset to explore potential predictors.This way I systematically evaluate the contribution of each dataset.
+
+I faced a lot of issues with logit model when attempting to work with a much larger and varied dataset, so I decided to look at alternative models like ridge. 
+
+## Evaluation
+
+After training the data in various models, I perform validation by predicting 'stars' for the 10,000 test observations. 
 # Evaluation 
 
 # Deployment
@@ -188,4 +217,4 @@ It is important to pick data that is most relevant
 
 ## Biggest challenge
 
-Preparing data. Business data was especially complex, with many variables in character form when they can be in binary form, and some nested sections which required extracting to perform analysis. 
+Preparing data. Business data was especially complex, with many variables in character form when they can be in binary form, and some nested sections which required extracting to perform analysis. It was hard to balance between working around complex data and using as much data as possible. It was also inobvious how to work with nested data, and figure out an efficient code in merging the data for seeing how stars correlates with these. Since the majority of the attributes has True/False data, I decided to move these to binary outcomes.
