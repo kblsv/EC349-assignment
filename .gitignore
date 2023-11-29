@@ -1,6 +1,6 @@
-# Ignore all .Rda files
+# Ignore files
 *.Rda
-
+*.RData
 # Ignore specific directory
 data/
 .Rproj.user
