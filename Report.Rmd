@@ -173,7 +173,7 @@ In addition: Warning messages:
 
 This may potentially be due to the number of missing (NA values) or their combination.
 
-When examining each of them on their own, it works out but some trends can be seen. Across all of them, average_stars and business_stars seem to have significant coefficients and high t-values. On the other hand, when observed separately, each of Open24Hours and DriveThru seem to be unsignificant. 
+I do different variations of the model for these variables and some common trends can be seen. Across all of them, average_stars and business_stars seem to have significant coefficients and high t-values. On the other hand, when observed separately, each of Open24Hours and DriveThru seem to be unsignificant. 
 
 In terms of measures of fit such as residual deviance and AIC, logit_model11 has the lowest (970.79 and 984.79 respectively) suggesting it might be the best in terms of balancing fit and complexity. 
 
@@ -196,12 +196,69 @@ As a result of that, I introduce other variables that are not strongly correlate
 
 Before using a more complex, combined final model, I initially conduct regressions between 'stars' and all variables within each separate dataset to explore potential predictors.This way I systematically evaluate the contribution of each dataset.
 
-I faced a lot of issues with logit model when attempting to work with a much larger and varied dataset, so I decided to look at alternative models like ridge. 
+Upon attempting regressions with all the attributes from business_data, i faced issues in multiple models including logit and ridge. One possibility is the number of missing values that is present for each attribute. This is added to the fact that the number of 'stars' observations in review_data_small is already significantly larger than the number of business_data observations. Imputing or ignoring NA values for the missing observations may introduce bias and inaccuracy into the model.
+
+Another issue i faced is rank-deficiency warning, which may have caused problems in calculating Hessian values. For that, I assess multicollinearity between predictors for each dataset using variance inflation factor.
 
 ## Evaluation
 
 After training the data in various models, I perform validation by predicting 'stars' for the 10,000 test observations. 
-# Evaluation 
+
+For ordered multinomial models, I firstly predict outcomes on the test data and then evaluate the model's performance through accuracy and confusion matrix. 
+
+Firstly, I evaluate the performance of logit_model11, which had the lowest residual deviance and AIC, as well as significant coefficients, suggesting it may be the best at predicting compared to the others. 
+
+After excluding missing values, I find accuracy = 0.6, meaning that the model correctly predicted the rating for 60% of cases in test dataset. To interpret this further, I compare this to a baseline model. The accuracy for a baseline model is 0.4653, showing that logit_model11 is doing better than a naive approach and that the predictors contribute significantly to predictive ability.
+
+To increase the accuracy further, I find the confusion matrix to see where the model performs better or worse. This shows the model performing much better for classes 4 and 5, and struggles with lower ratings predictions. Furthermore, the confidence interval (0.1466, 0.9473) suggests a high level of uncertainty in accuracy estimate.
+
+To improve accuracy and prediction for a wider range, I proceed with feature engineering and explore more variables to see if that improves prediction. If not, I will check other models. 
+
+I am focusing on numeric and categorical variables which are present in model2_data. There are 46 variables (outside of logit_model11) to pick from. Firstly, I focus on finding variables that may be better at predicting lower ratings to balance out the confusion matrix. To do that, I perform univaraite analysis where I compare mean star ratings across groups for each predictor and thus see how average rating changes with different values of predictors. I will then pick variables that show significant variation in mean star ratings across categories. 
+*for continuous variables, i firstly bin them to group them.
+
+When observing useful, funny, and cool from review_data:
+*reviews not marked as useful or funny tend to have higher star ratings
+*reviews marked as 'cool' are more likely to have higher star ratings
+*cool has more distinct star ratings
+*all three capture a similar aspect of the data and including all three may introduce multicollinearity
+Therefore I add 'cool' as a predictor in the 2nd model. 
+
+For the first few variables in user_data:
+*A user's review count has an increasing trend with higher stars
+*Users with more cool, funny, useful marks also have higher stars - however, this has a smoother relationship than previously described 'cool' and it may also cause multicolliniearity with 'cool'. User engagement metrics may be related to ratings for individual reviews.
+*Similar trend is seen in fans
+*The very close direct relationship between average_stars and stars explains why it has good predictive power in logit_model11
+For the above reasons, I add user_review_count and fans as new predictors.
+
+For compliment data:
+*Average star rating increases as the compliment count increases for all types of compliments
+*The trends vary by how strong/distinct they are
+*I pick the ones with the strongest trends and calculate correlations so I can use multiple wihout causing multicolliniearity
+All of them have moderate to strong correlation, so I pick the variable with the strongest trend (i.e. highest range of mean ratings of 0.2918) is compliment_photos. 
+
+For business data:
+*business_data shows a direct close trend, confirming its predictive power significance in logit_model11
+*review_count shows a weaker but still a positive trend with mean stars
+*RestaurantsPriceRange2 shows a clear trend with star ratings so I will include it
+*I also calculate correlations here since there is a large number of potential predictors to select from as many show a clear trend with stars
+The correlations show a range of values. I attempt to find variables that have a significant impact on star ratings but minimal multicolliniearity. Firstly I pick on variables that have a big difference in star rating depending on category:
+*The first 15 include: Open24Hours, DriveThru, AcceptsInsurance, GoodForDancing, HasTV, HappyHour, BikeParking, WheelchairAccessible, OutdoorSeating, RestaurantsCounterService, RestaurantsPriceRange, BusinessAcceptsCreditCards, BusinessAcceptsBitcoin, RestaurantsTakeOut, BYOB.
+*Open24Hours is correlated with multiple variables so I avoid it
+*DriveThru is only strongly correlated with Open24Hours and RestaurantsPriceRange2
+*HasTV is correlated strongly with Open24Hours,HappyHour, RestaurantsCounterService, BYOB(moderatley)
+*GoodForDancing is moderately/strongly correlated with RestaurantsCounterService and pricerange2
+*HappyHour with HasTV, counterservice, drivethru,pricerange, BYOB
+*BikeParking with Open24Hours, outdoorseating
+*Wheelchairaccess with accepts insurance, counterservice moderately and BYOB
+*OutdoorSeating with open24, acceptsinsurance, happyhour, bikeparking,etc
+*PriceRange2
+
+Thus, I include DriveThru, AcceptsInsurance, GoodForDancing, HasTV, and BikeParking. 
+Alternatively, I could include Open24Hours, (AcceptsInsurance, GoodForDancing), HappyHour, WheelChairAccessible, RestaurantsPriceRange2, BusinessAcceptsCreditCards
+
+
+
 
 # Deployment
 

@@ -63,7 +63,7 @@ corr_review <- sapply(corr_review_variables, function(var) {
   cor(review_data_small$stars, review_data_small[[var]], use = "complete.obs")
 })
 
-rm(list = c("model2_data"))
+rm(list = c("ridge_model1","ridge_model2","tip_transformed","x1","x2","x3","logit_model21","logit_model211","logit_model23","lm_model211"))
 
 # Correlations: review data and user data 
 library(dplyr)
@@ -433,7 +433,7 @@ train1 <- sample(1:nrow(model2_data),nrow(model2_data)-10000)
 train_data2<-model2_data[train1,]
 test_data2<-model2_data[-train1,]
 
-# Convert 'stars' to factor in for train and test data 2
+# Convert 'stars' to factor in for train and test data 2 if using logit
 train_data2$stars <- factor(train_data2$stars, levels = c(1, 2, 3, 4, 5), ordered = TRUE)
 test_data2$stars <- factor(test_data2$stars, levels = c(1, 2, 3, 4, 5), ordered = TRUE)
 
@@ -442,16 +442,19 @@ test_data2$stars <- factor(test_data2$stars, levels = c(1, 2, 3, 4, 5), ordered 
 
 #Logit
 # 2.1 regress stars on variables from business_data
-logit_model21 <- polr(stars ~ latitude + longitude + business_stars + review_count + is_open+ByAppointmentOnly + BusinessAcceptsCreditCards + BikeParking+ 
-                        RestaurantsPriceRange2 + CoatCheck + RestaurantsTakeOut + 
-                        RestaurantsDelivery + Caters + WheelchairAccessible + HappyHour + 
-                        OutdoorSeating + HasTV + RestaurantsReservations + DogsAllowed + 
-                        GoodForKids + RestaurantsTableService + RestaurantsGoodForGroups + 
-                        DriveThru + BusinessAcceptsBitcoin + GoodForDancing+ AcceptsInsurance +
-                        BYOB + Corkage + Open24Hours + RestaurantsCounterService,
+logit_model21 <- polr(stars ~ latitude + longitude + business_stars + review_count + is_open,
                        data = train_data2, method = 'logistic')
-str(train_data2)
-# 2.2 regress stars on variables from review_data_small
+
+logit_model211 <- polr(stars~ByAppointmentOnly + BusinessAcceptsCreditCards + BikeParking+ 
+                         RestaurantsPriceRange2 + CoatCheck + RestaurantsTakeOut + 
+                         RestaurantsDelivery + Caters + WheelchairAccessible + HappyHour + 
+                         OutdoorSeating + HasTV + RestaurantsReservations + DogsAllowed + 
+                         GoodForKids + RestaurantsTableService + RestaurantsGoodForGroups + 
+                         DriveThru + BusinessAcceptsBitcoin + GoodForDancing +
+                         BYOB + Corkage,
+                       data = train_data2, method = 'logistic')
+
+# 2.2 regress stars on variables from review_data_small - causes error, potentially due to high skewness, many zeros
 logit_model22 <- polr(stars ~ useful + funny + cool, data = train_data2, method = 'logistic')
 # 2.3 regress stars on variables from user_data_small
 logit_model23 <-polr(stars ~ user_review_count + user_useful + user_funny+ user_cool + fans
@@ -460,22 +463,24 @@ logit_model23 <-polr(stars ~ user_review_count + user_useful + user_funny+ user_
                        compliment_cool+compliment_funny+compliment_writer+compliment_photos
                      , data = train_data2, method = 'logistic')
 
-#Ridge
+#Ridge (using model2_data but without converting stars to an ordered factor)
 install.packages('glmnet')
 library(glmnet)
 grid<-10^seq(10,-2, length = 100)
 
-#Ridge 1.1 regress stars on business_data
+#Ridge 1.1 regress stars on non-attribite business_data
 # Define predictors and response for Model 1
-x1 <- model.matrix(~ latitude + longitude + business_stars + review_count + is_open + 
-                     ByAppointmentOnly + BusinessAcceptsCreditCards + BikeParking + 
-                     RestaurantsPriceRange2 + CoatCheck + RestaurantsTakeOut + 
-                     RestaurantsDelivery + Caters + WheelchairAccessible + HappyHour + 
-                     OutdoorSeating + HasTV + RestaurantsReservations + DogsAllowed + 
-                     GoodForKids + RestaurantsTableService + RestaurantsGoodForGroups + 
-                     DriveThru + BusinessAcceptsBitcoin + GoodForDancing + AcceptsInsurance + 
-                     BYOB + Corkage + Open24Hours + RestaurantsCounterService - 1, 
+x1 <- model.matrix(~ latitude + longitude + business_stars + review_count + is_open- 1, 
                    data = train_data2)  # '-1' to exclude intercept
+
++ ByAppointmentOnly + BusinessAcceptsCreditCards + BikeParking + 
+  RestaurantsPriceRange2 + CoatCheck + RestaurantsTakeOut + 
+  RestaurantsDelivery + Caters + WheelchairAccessible + HappyHour + 
+  OutdoorSeating + HasTV +RestaurantsReservations + DogsAllowed + 
+  GoodForKids + RestaurantsTableService + RestaurantsGoodForGroups + 
+  DriveThru + BusinessAcceptsBitcoin + GoodForDancing + AcceptsInsurance + 
+  BYOB + Corkage + Open24Hours + RestaurantsCounterService
+
 y1 <- train_data2$stars
 
 # Fit ridge regression model
@@ -483,5 +488,328 @@ ridge_model1 <- glmnet(x1, y1, alpha = 0)  # alpha = 0 for ridge regression
 
 #Ridge 1.2 regress stars on review_data_small
 
+x2 <- model.matrix(~ useful + funny + cool - 1, data = train_data2)
+y2 <- train_data2$stars
+
+ridge_model2 <- glmnet(x2, y2, alpha = 0)
+
 #Ridge 2.3 regress stars on user
+# Define predictors and response for Model 3
+x3 <- model.matrix(~ user_review_count + user_useful + user_funny + user_cool + fans + 
+                     average_stars + compliment_hot + compliment_more + compliment_profile + 
+                     compliment_cute + compliment_list + compliment_note + compliment_plain + 
+                     compliment_cool + compliment_funny + compliment_writer + compliment_photos - 1, 
+                   data = train_data2)
+y3 <- train_data2$stars
+
+# Fit ridge regression model
+ridge_model3 <- glmnet(x3, y3, alpha = 0)
+
 # Boosting? after measuring fit 
+
+# Evaluation: Validation 
+
+# logit_model11 
+#predict most likely class
+test_predictions11 <- predict(logit_model11, newdata = test_data, type = "class")
+#ensuring test_predictions11 has the same levels as test_data$stars
+test_predictions11 <- factor(test_predictions11, levels = levels(test_data$stars))
+# Convert test_predictions11 to an ordered factor
+test_predictions11 <- factor(test_predictions11, 
+                                     levels = levels(test_data$stars), 
+                                     ordered = TRUE)
+accuracy11 <- sum(test_predictions11 == test_data$stars) / nrow(test_data)
+print(accuracy11) #get NA, so exclude missing values:
+# Calculate accuracy excluding NA values
+valid_cases <- !is.na(test_predictions11) & !is.na(test_data$stars)
+accuracy11 <- sum(test_predictions11[valid_cases] == test_data$stars[valid_cases]) / sum(valid_cases)
+print(accuracy11)
+#compare to baseline
+#most common class in the traindata
+most_common_class <- names(sort(table(train_data$stars), decreasing = TRUE))[1]
+
+# Create baseline predictions
+baseline_predictions <- rep(most_common_class, nrow(test_data))
+
+# Calculate baseline accuracy
+baseline_accuracy <- sum(baseline_predictions == test_data$stars) / nrow(test_data)
+print(baseline_accuracy)
+
+#confusion matrix
+confusionMatrix(test_predictions11, test_data$stars)
+
+#Univariate analysis: splitting variables into groups and calculating mean ratings
+# binning useful, funny, cool with custom bins due to large amount of values near 0 
+model2_data$useful_bins <- cut(model2_data$useful, 
+                               breaks = c(-Inf, 0, 5, 20, Inf), 
+                               include.lowest = TRUE, 
+                               labels = c("0", "1-5", "6-20", "21+"))
+mean_stars_by_useful <- aggregate(stars ~ useful_bins, data = model2_data, mean)
+print(mean_stars_by_useful)
+
+model2_data$funny_bins <- cut(model2_data$funny, 
+                              breaks = c(-Inf, 0, 5, 20, Inf), 
+                              include.lowest = TRUE, 
+                              labels = c("0", "1-5", "6-20", "21+"))
+mean_stars_by_funny <- aggregate(stars ~ funny_bins, data = model2_data, mean)
+print(mean_stars_by_funny)
+
+model2_data$cool_bins <- cut(model2_data$cool, 
+                             breaks = c(-Inf, 0, 5, 20, Inf), 
+                             include.lowest = TRUE, 
+                             labels = c("0", "1-5", "6-20", "21+"))
+mean_stars_by_cool <- aggregate(stars ~ cool_bins, data = model2_data, mean)
+print(mean_stars_by_cool)
+
+#binning user data
+#observing the distributions to decide on which points to cut the data
+summary(model2_data$user_review_count)
+summary(model2_data$user_useful)
+summary(model2_data$user_funny)
+summary(model2_data$user_cool)
+summary(model2_data$fans)
+summary(model2_data$average_stars)
+
+model2_data$user_review_count_bins <- cut(model2_data$user_review_count, 
+                                          breaks = c(-Inf, 0, 10, 50, 100, Inf), 
+                                          include.lowest = TRUE, 
+                                          labels = c("0", "1-10", "11-50", "51-100", "101+"))
+mean_stars_by_user_review_count <- aggregate(stars ~ user_review_count_bins, data = model2_data, mean)
+print(mean_stars_by_user_review_count)
+
+model2_data$user_useful_bins <- cut(model2_data$user_useful, 
+                                    breaks = c(-Inf, 50, 500, 1000, 5000, Inf), 
+                                    include.lowest = TRUE, 
+                                    labels = c("0-50", "51-500", "501-1000", "1001-5000", "5000+"))
+mean_stars_by_user_useful <- aggregate(stars ~ user_useful_bins, data = model2_data, mean)
+print(mean_stars_by_user_useful)
+
+model2_data$user_funny_bins <- cut(model2_data$user_funny, 
+                                   breaks = c(-Inf, 5, 25, 50, 100, Inf), 
+                                   include.lowest = TRUE, 
+                                   labels = c("0-5", "6-25", "26-50", "51-100", "100+"))
+mean_stars_by_user_funny <- aggregate(stars ~ user_funny_bins, data = model2_data, mean)
+print(mean_stars_by_user_funny)
+
+model2_data$user_cool_bins <- cut(model2_data$user_cool, 
+                                  breaks = c(-Inf, 5, 25, 50, 100, Inf), 
+                                  include.lowest = TRUE, 
+                                  labels = c("0-5", "6-25", "26-50", "51-100", "100+"))
+mean_stars_by_user_cool <- aggregate(stars ~ user_cool_bins, data = model2_data, mean)
+print(mean_stars_by_user_cool)
+
+model2_data$fans_bins <- cut(model2_data$fans, 
+                             breaks = c(-Inf, 1, 5, 10, 50, Inf), 
+                             include.lowest = TRUE, 
+                             labels = c("0", "1-5", "6-10", "11-50", "50+"))
+mean_stars_by_fans <- aggregate(stars ~ fans_bins, data = model2_data, mean)
+print(mean_stars_by_fans)
+
+model2_data$average_stars_bins <- cut(model2_data$average_stars, 
+                                      breaks = c(1, 2, 3, 4, 5), 
+                                      include.lowest = TRUE, 
+                                      right = FALSE)
+mean_stars_by_average_stars <- aggregate(stars ~ average_stars_bins, data = model2_data, mean)
+print(mean_stars_by_average_stars)
+
+#binning compliment data from user data
+#again, a lot of zeros and skew to higher values, so I focus on concentration of lower values
+summary(model2_data$compliment_hot)
+summary(model2_data$compliment_more)
+summary(model2_data$compliment_profile)
+summary(model2_data$compliment_cute)
+summary(model2_data$compliment_list)
+summary(model2_data$compliment_note)
+summary(model2_data$compliment_plain)
+summary(model2_data$compliment_cool)
+summary(model2_data$compliment_funny)
+summary(model2_data$compliment_writer)
+summary(model2_data$compliment_photos)
+
+model2_data$compliment_hot_bins <- cut(model2_data$compliment_hot, 
+                                       breaks = c(-Inf, 0, 1, 5, 20, Inf), 
+                                       include.lowest = TRUE, 
+                                       labels = c("0", "1", "2-5", "6-20", "20+"))
+mean_stars_by_compliment_hot <- aggregate(stars ~ compliment_hot_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_hot)
+
+model2_data$compliment_more_bins <- cut(model2_data$compliment_more, 
+                                        breaks = c(-Inf, 0, 1, 10, 50, Inf), 
+                                        include.lowest = TRUE, 
+                                        labels = c("0", "1", "2-10", "11-50", "50+"))
+mean_stars_by_compliment_more <- aggregate(stars ~ compliment_more_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_more)
+
+model2_data$compliment_profile_bins <- cut(model2_data$compliment_profile, 
+                                           breaks = c(-Inf, 0, 1, 5, 20, Inf), 
+                                           include.lowest = TRUE, 
+                                           labels = c("0", "1", "2-5", "6-20", "20+"))
+mean_stars_by_compliment_profile <- aggregate(stars ~ compliment_profile_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_profile)
+
+model2_data$compliment_cute_bins <- cut(model2_data$compliment_cute, 
+                                        breaks = c(-Inf, 0, 1, 5, 20, Inf), 
+                                        include.lowest = TRUE, 
+                                        labels = c("0", "1", "2-5", "6-20", "20+"))
+mean_stars_by_compliment_cute <- aggregate(stars ~ compliment_cute_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_cute)
+
+model2_data$compliment_list_bins <- cut(model2_data$compliment_list, 
+                                        breaks = c(-Inf, 0, 1, 5, 10, Inf), 
+                                        include.lowest = TRUE, 
+                                        labels = c("0", "1", "2-5", "6-10", "10+"))
+mean_stars_by_compliment_list <- aggregate(stars ~ compliment_list_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_list)
+
+model2_data$compliment_note_bins <- cut(model2_data$compliment_note, 
+                                        breaks = c(-Inf, 0, 5, 20, 50, Inf), 
+                                        include.lowest = TRUE, 
+                                        labels = c("0", "1-5", "6-20", "21-50", "50+"))
+mean_stars_by_compliment_note <- aggregate(stars ~ compliment_note_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_note)
+
+model2_data$compliment_plain_bins <- cut(model2_data$compliment_plain, 
+                                         breaks = c(-Inf, 0, 5, 20, 50, Inf), 
+                                         include.lowest = TRUE, 
+                                         labels = c("0", "1-5", "6-20", "21-50", "50+"))
+mean_stars_by_compliment_plain <- aggregate(stars ~ compliment_plain_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_plain)
+
+model2_data$compliment_cool_bins <- cut(model2_data$compliment_cool, 
+                                        breaks = c(-Inf, 0, 5, 20, 50, Inf), 
+                                        include.lowest = TRUE, 
+                                        labels = c("0", "1-5", "6-20", "21-50", "50+"))
+mean_stars_by_compliment_cool <- aggregate(stars ~ compliment_cool_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_cool)
+
+model2_data$compliment_funny_bins <- cut(model2_data$compliment_funny, 
+                                         breaks = c(-Inf, 0, 5, 20, 50, Inf), 
+                                         include.lowest = TRUE, 
+                                         labels = c("0", "1-5", "6-20", "21-50", "50+"))
+mean_stars_by_compliment_funny <- aggregate(stars ~ compliment_funny_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_funny)
+
+model2_data$compliment_writer_bins <- cut(model2_data$compliment_writer, 
+                                          breaks = c(-Inf, 0, 5, 20, 50, Inf), 
+                                          include.lowest = TRUE, 
+                                          labels = c("0", "1-5", "6-20", "21-50", "50+"))
+mean_stars_by_compliment_writer <- aggregate(stars ~ compliment_writer_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_writer)
+
+model2_data$compliment_photos_bins <- cut(model2_data$compliment_photos, 
+                                          breaks = c(-Inf, 0, 5, 20, 50, Inf), 
+                                          include.lowest = TRUE, 
+                                          labels = c("0", "1-5", "6-20", "21-50", "50+"))
+mean_stars_by_compliment_photos <- aggregate(stars ~ compliment_photos_bins, data = model2_data, mean)
+print(mean_stars_by_compliment_photos)
+
+#Correlations within compliment data (checking if I can use multiple without multicollinearity)
+# Subset the relevant columns from your data
+compliment_data <- model2_data[, c("compliment_hot","compliment_more","compliment_plain","compliment_cool","compliment_writer","compliment_photos")]
+corr_compliment_matrix <- cor(compliment_data, use = "complete.obs")
+print(corr_compliment_matrix)
+
+#binning business data
+model2_data$business_stars_bins <- cut(model2_data$business_stars, 
+                                       breaks = c(1, 2, 3, 4, 5), 
+                                       include.lowest = TRUE, 
+                                       right = FALSE)
+mean_stars_by_business_stars <- aggregate(stars ~business_stars_bins, data = model2_data, mean)
+print(mean_stars_by_business_stars)
+
+model2_data$review_count_bins <- cut(model2_data$review_count, 
+                                     breaks = c(-Inf, 50, 150, 400, 1000, Inf), 
+                                     include.lowest = TRUE, 
+                                     labels = c("0-50", "51-150", "151-400", "401-1000", "1001+"))
+mean_stars_by_review_count <- aggregate(stars ~ review_count_bins, data = model2_data, mean)
+print(mean_stars_by_review_count)
+
+mean_stars_by_is_open <- aggregate(stars ~ is_open, data = model2_data, mean)
+print(mean_stars_by_is_open)
+
+mean_stars_by_appointment <- aggregate(stars ~ ByAppointmentOnly, data = model2_data, mean)
+print(mean_stars_by_appointment)
+
+mean_stars_by_credit_cards <- aggregate(stars ~ BusinessAcceptsCreditCards, data = model2_data, mean)
+print(mean_stars_by_credit_cards)
+
+mean_stars_by_bikeparking <- aggregate(stars ~ BikeParking, data = model2_data, mean)
+print(mean_stars_by_bikeparking)
+
+mean_stars_by_coatcheck <- aggregate(stars ~ CoatCheck, data = model2_data, mean)
+print(mean_stars_by_coatcheck)
+
+mean_stars_by_takeout <- aggregate(stars ~ RestaurantsTakeOut, data = model2_data, mean)
+print(mean_stars_by_takeout)
+
+mean_stars_by_delivery <- aggregate(stars ~ RestaurantsDelivery, data = model2_data, mean)
+print(mean_stars_by_delivery)
+
+mean_stars_by_caters <- aggregate(stars ~ Caters, data = model2_data, mean)
+print(mean_stars_by_caters)
+
+mean_stars_by_wheelchair <- aggregate(stars ~ WheelchairAccessible, data = model2_data, mean)
+print(mean_stars_by_wheelchair)
+
+mean_stars_by_happyhour <- aggregate(stars ~ HappyHour, data = model2_data, mean)
+print(mean_stars_by_happyhour)
+
+mean_stars_by_outdoor <- aggregate(stars ~ OutdoorSeating, data = model2_data, mean)
+print(mean_stars_by_outdoor)
+
+mean_stars_by_hastv <- aggregate(stars ~ HasTV, data = model2_data, mean)
+print(mean_stars_by_hastv)
+
+mean_stars_by_reservations <- aggregate(stars ~ RestaurantsReservations, data = model2_data, mean)
+print(mean_stars_by_reservations)
+
+mean_stars_by_dogsallowed <- aggregate(stars ~ DogsAllowed, data = model2_data, mean)
+print(mean_stars_by_dogsallowed)
+
+mean_stars_by_goodforkids <- aggregate(stars ~ GoodForKids, data = model2_data, mean)
+print(mean_stars_by_goodforkids)
+
+mean_stars_by_tableservice <- aggregate(stars ~ RestaurantsTableService, data = model2_data, mean)
+print(mean_stars_by_tableservice)
+
+mean_stars_by_goodforgroups <- aggregate(stars ~ RestaurantsGoodForGroups, data = model2_data, mean)
+print(mean_stars_by_goodforgroups)
+
+mean_stars_by_drivethru <- aggregate(stars ~ DriveThru, data = model2_data, mean)
+print(mean_stars_by_drivethru)
+
+mean_stars_by_bitcoin <- aggregate(stars ~ BusinessAcceptsBitcoin, data = model2_data, mean)
+print(mean_stars_by_bitcoin)
+
+mean_stars_by_dancing <- aggregate(stars ~ GoodForDancing, data = model2_data, mean)
+print(mean_stars_by_dancing)
+
+mean_stars_by_insurance <- aggregate(stars ~ AcceptsInsurance, data = model2_data, mean)
+print(mean_stars_by_insurance)
+
+mean_stars_by_byob <- aggregate(stars ~ BYOB, data = model2_data, mean)
+print(mean_stars_by_byob)
+
+mean_stars_by_corkage <- aggregate(stars ~ Corkage, data = model2_data, mean)
+print(mean_stars_by_corkage)
+
+mean_stars_by_open24hours <- aggregate(stars ~ Open24Hours, data = model2_data, mean)
+print(mean_stars_by_open24hours)
+
+mean_stars_by_counterservice <- aggregate(stars ~ RestaurantsCounterService, data = model2_data, mean)
+print(mean_stars_by_counterservice)
+
+mean_stars_by_price_range <- aggregate(stars ~ RestaurantsPriceRange2, data = model2_data, mean)
+print(mean_stars_by_price_range)
+
+#correlations for attributes
+binary <- model2_data[, c("Open24Hours", "DriveThru", "AcceptsInsurance", 
+                          "GoodForDancing", "HasTV", "HappyHour", "BikeParking", 
+                          "WheelchairAccessible", "OutdoorSeating", "RestaurantsCounterService", 
+                          "RestaurantsPriceRange2", "BusinessAcceptsCreditCards", 
+                          "BusinessAcceptsBitcoin", "RestaurantsTakeOut", "BYOB")]
+corr_binary <- cor(binary, use = "pairwise.complete.obs") 
+print(corr_binary)
+
+# Logit Model 2 
+logit_model21
