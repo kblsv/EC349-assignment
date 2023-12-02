@@ -63,17 +63,16 @@ corr_review <- sapply(corr_review_variables, function(var) {
   cor(review_data_small$stars, review_data_small[[var]], use = "complete.obs")
 })
 
-rm(list = c("ridge_model1","ridge_model2","tip_transformed","x1","x2","x3","logit_model21","logit_model211","logit_model23","lm_model211"))
-
+rm(list = c("model2_data"))
 # Correlations: review data and user data 
 library(dplyr)
 
 # Renaming conflicting columns in user_data_small before merging
 user_data_small <- user_data_small %>%
   rename(
-    #user_useful = useful,
-    #user_funny = funny,
-    #user_cool = cool,
+    user_useful = useful,
+    user_funny = funny,
+    user_cool = cool,
     user_review_count = review_count
   )
 
@@ -255,6 +254,7 @@ miss_var_summary(model1_data)
 
 library(dplyr)
 
+#merge the necessary datasets after renaming any clashing variables (code above)
 model2_data <- review_data_small %>%
   left_join(user_data_small, by = "user_id") %>%
   left_join(business_data %>%
@@ -463,48 +463,6 @@ logit_model23 <-polr(stars ~ user_review_count + user_useful + user_funny+ user_
                        compliment_cool+compliment_funny+compliment_writer+compliment_photos
                      , data = train_data2, method = 'logistic')
 
-#Ridge (using model2_data but without converting stars to an ordered factor)
-install.packages('glmnet')
-library(glmnet)
-grid<-10^seq(10,-2, length = 100)
-
-#Ridge 1.1 regress stars on non-attribite business_data
-# Define predictors and response for Model 1
-x1 <- model.matrix(~ latitude + longitude + business_stars + review_count + is_open- 1, 
-                   data = train_data2)  # '-1' to exclude intercept
-
-+ ByAppointmentOnly + BusinessAcceptsCreditCards + BikeParking + 
-  RestaurantsPriceRange2 + CoatCheck + RestaurantsTakeOut + 
-  RestaurantsDelivery + Caters + WheelchairAccessible + HappyHour + 
-  OutdoorSeating + HasTV +RestaurantsReservations + DogsAllowed + 
-  GoodForKids + RestaurantsTableService + RestaurantsGoodForGroups + 
-  DriveThru + BusinessAcceptsBitcoin + GoodForDancing + AcceptsInsurance + 
-  BYOB + Corkage + Open24Hours + RestaurantsCounterService
-
-y1 <- train_data2$stars
-
-# Fit ridge regression model
-ridge_model1 <- glmnet(x1, y1, alpha = 0)  # alpha = 0 for ridge regression
-
-#Ridge 1.2 regress stars on review_data_small
-
-x2 <- model.matrix(~ useful + funny + cool - 1, data = train_data2)
-y2 <- train_data2$stars
-
-ridge_model2 <- glmnet(x2, y2, alpha = 0)
-
-#Ridge 2.3 regress stars on user
-# Define predictors and response for Model 3
-x3 <- model.matrix(~ user_review_count + user_useful + user_funny + user_cool + fans + 
-                     average_stars + compliment_hot + compliment_more + compliment_profile + 
-                     compliment_cute + compliment_list + compliment_note + compliment_plain + 
-                     compliment_cool + compliment_funny + compliment_writer + compliment_photos - 1, 
-                   data = train_data2)
-y3 <- train_data2$stars
-
-# Fit ridge regression model
-ridge_model3 <- glmnet(x3, y3, alpha = 0)
-
 # Boosting? after measuring fit 
 
 # Evaluation: Validation 
@@ -560,6 +518,10 @@ model2_data$cool_bins <- cut(model2_data$cool,
                              labels = c("0", "1-5", "6-20", "21+"))
 mean_stars_by_cool <- aggregate(stars ~ cool_bins, data = model2_data, mean)
 print(mean_stars_by_cool)
+#correlations for usefuly, funny, cool
+corr_review_data <- model2_data[, c("useful","cool","funny")]
+corr_review_matrix <- cor(corr_review_data, use = "complete.obs")
+print(corr_review_matrix)
 
 #binning user data
 #observing the distributions to decide on which points to cut the data
@@ -611,6 +573,11 @@ model2_data$average_stars_bins <- cut(model2_data$average_stars,
                                       right = FALSE)
 mean_stars_by_average_stars <- aggregate(stars ~ average_stars_bins, data = model2_data, mean)
 print(mean_stars_by_average_stars)
+
+#correlations for user_data
+corr_user_data <- model2_data[, c("user_review_count","user_useful","user_funny","user_cool","fans")]
+corr_user_matrix <- cor(corr_user_data, use = "complete.obs")
+print(corr_user_matrix)
 
 #binning compliment data from user data
 #again, a lot of zeros and skew to higher values, so I focus on concentration of lower values
@@ -811,5 +778,182 @@ binary <- model2_data[, c("Open24Hours", "DriveThru", "AcceptsInsurance",
 corr_binary <- cor(binary, use = "pairwise.complete.obs") 
 print(corr_binary)
 
+#removing bins
+model2_data$review_count_bins <- NULL
+model2_data$business_stars_bins <- NULL
+model2_data$compliment_hot_bins <- NULL
+model2_data$compliment_photos_bins <- NULL
+model2_data$compliment_writer_bins <- NULL
+model2_data$compliment_funny_bins <- NULL
+model2_data$compliment_cool_bins <- NULL
+model2_data$compliment_plain_bins <- NULL
+model2_data$compliment_note_bins <- NULL
+model2_data$compliment_list_bins <- NULL
+model2_data$compliment_cute_bins <- NULL
+model2_data$compliment_profile_bins <- NULL
+model2_data$compliment_more_bins <- NULL
+model2_data$average_stars_bins <- NULL
+model2_data$fans_bins <- NULL
+model2_data$user_cool_bins <- NULL
+model2_data$user_funny_bins <- NULL
+model2_data$user_useful_bins <- NULL
+model2_data$user_review_count_bins <- NULL
+
+
 # Logit Model 2 
-logit_model21
+logit_model21 <- polr(stars ~ average_stars + business_stars + Open24Hours
+                      +cool + user_review_count + fans + compliment_photos +
+                        review_count, data=train_data2, method='logistic')
+logit_model22 <- polr(stars ~ average_stars + business_stars + Open24Hours
+                      +cool + user_review_count + fans + compliment_photos +
+                        review_count+Open24Hours+HappyHour+Caters+
+                        HasTV + BikeParking, data=train_data2, method='logistic')
+
+#logit_model22 <- polr(stars ~ average_stars + business_stars + Open24Hours
+#                      +cool + user_review_count + fans + compliment_photos +
+ #                       review_count + DriveThru + AcceptsInsurance+ GoodForDancing+ 
+  #                      HasTV + BikeParking, data=train_data2, method='logistic')
+
+#logit_model23 <- polr(stars ~ average_stars + business_stars + Open24Hours
+   #                   +cool + user_review_count + fans + compliment_photos +
+    #                    review_count + Open24Hours +AcceptsInsurance +GoodForDancing+
+     #                   HappyHour+WheelchairAccessible+RestaurantsPriceRange2+
+      #                  BusinessAcceptsCreditCards, data=train_data2, method='logistic')
+
+summary(logit_model21)
+summary(logit_model22)
+
+# Validation of logit_model22
+
+#predict most likely class
+test_predictions22 <- predict(logit_model22, newdata = test_data2, type = "class")
+#ensuring test_predictions22 has the same levels as test_data2$stars
+test_predictions22 <- factor(test_predictions22, levels = levels(test_data2$stars))
+# Convert test_predictions22 to an ordered factor
+test_predictions22 <- factor(test_predictions22, 
+                             levels = levels(test_data2$stars), 
+                             ordered = TRUE)
+accuracy22 <- sum(test_predictions22 == test_data2$stars) / nrow(test_data2)
+print(accuracy22) #get NA, so exclude missing values:
+# Calculate accuracy excluding NA values
+valid_cases2 <- !is.na(test_predictions22) & !is.na(test_data2$stars)
+accuracy22 <- sum(test_predictions22[valid_cases2] == test_data2$stars[valid_cases2]) / sum(valid_cases2)
+print(accuracy22)
+#compare to baseline
+#most common class in the traindata2
+most_common_class2 <- names(sort(table(train_data2$stars), decreasing = TRUE))[1]
+
+# Create baseline predictions
+baseline_predictions2 <- rep(most_common_class2, nrow(test_data2))
+
+# Calculate baseline accuracy
+baseline_accuracy2 <- sum(baseline_predictions2 == test_data2$stars) / nrow(test_data2)
+print(baseline_accuracy2)
+
+#confusion matrix
+confusionMatrix(test_predictions22, test_data2$stars)
+
+summary(logit_model22)
+str(train_data2)
+str(test_data2)
+summary(train_data2)
+summary(test_data2)
+
+#for logit_model21
+#predict most likely class
+test_predictions21 <- predict(logit_model21, newdata = test_data2, type = "class")
+#ensuring test_predictions22 has the same levels as test_data2$stars
+test_predictions21 <- factor(test_predictions21, levels = levels(test_data2$stars))
+# Convert test_predictions22 to an ordered factor
+test_predictions21 <- factor(test_predictions21, 
+                             levels = levels(test_data2$stars), 
+                             ordered = TRUE)
+accuracy21 <- sum(test_predictions21 == test_data2$stars) / nrow(test_data2)
+print(accuracy21) #get NA, so exclude missing values:
+# Calculate accuracy excluding NA values
+valid_cases21 <- !is.na(test_predictions21) & !is.na(test_data2$stars)
+accuracy21 <- sum(test_predictions21[valid_cases21] == test_data2$stars[valid_cases21]) / sum(valid_cases21)
+print(accuracy21)
+#compare to baseline
+#most common class in the traindata2
+most_common_class21 <- names(sort(table(train_data2$stars), decreasing = TRUE))[1]
+
+# Create baseline predictions
+baseline_predictions21 <- rep(most_common_class21, nrow(test_data2))
+
+# Calculate baseline accuracy
+baseline_accuracy21 <- sum(baseline_predictions21 == test_data2$stars) / nrow(test_data2)
+print(baseline_accuracy21)
+
+#confusion matrix
+confusionMatrix(test_predictions21, test_data2$stars)
+
+summary(test_predictions21)
+summary(test_predictions11)
+
+#attempting decision tree
+install.packages('tree')
+library(tree)
+#modelling
+decisiontree1<-tree(stars ~ average_stars + business_stars + Open24Hours, data=train_data2)
+#2nd one accuracy of 0.5127 
+decisiontree1<-tree(stars~average_stars + business_stars + Open24Hours
+                   +cool + user_review_count + fans + compliment_photos +
+                     review_count, data=train_data2)
+#first one accuracy of 0.4746 decisiontree1<-tree(stars ~ average_stars + business_stars + Open24Hours
+ #                   +cool + user_review_count + fans + compliment_photos +
+  #                    review_count+Open24Hours+HappyHour+Caters+
+   #                   HasTV + BikeParking, data=train_data2)
+plot(decisiontree1)
+text(decisiontree1,pretty=1)
+#validation
+test_predictions3 <-predict(decisiontree1,newdata=test_data2,type='class')
+summary(test_predictions3)
+test_predictions3 <-factor(test_predictions3, levels = levels(test_data2$stars), ordered = TRUE)
+accuracy3<-sum(test_predictions3==test_data2$stars)/nrow(test_data2)
+print(accuracy3)
+
+#attempting random forest
+install.packages('randomForest')
+library(randomForest)
+
+randomforest1<-randomForest(stars ~ business_stars +cool + review_count +is_open
+                            +RestaurantsPriceRange2,
+                            data=train_data2,
+                            ntree=50,
+                            mtry=2)
+
+test_predictions4<-predict(randomforest1,newdata=test_data2)
+test_predictions4 <-factor(test_predictions4, levels = levels(test_data2$stars), ordered = TRUE)
+accuracy4<-sum(test_predictions4==test_data2$stars)/nrow(test_data2)
+print(accuracy4)
+library(caret)
+confusionMatrix <-table(Predicted=test_predictions4, Actual = test_data2$stars)
+print(confusionMatrix)
+#too many missing values 
+#Use missForest instead
+#missForest assumes Missing At Random - testing if it is the case
+#seeing if it is Missing Completely At Random
+install.packages("naniar")
+library(naniar)
+mcar_test <- naniar::mcar_test(train_data2)
+print(mcar_test)
+#p.value of 0 shows that the null hypothesis of MCAR is rejected. 
+#seeing if it is just Missing At Random
+install.packages("ggplot2")
+library(ggplot2)
+#visualising pattern of missing data
+gg_miss_var(train_data2)
+vis_miss(train_data2)#data too large so downsampling
+train_data2_sample <- train_data2 %>% 
+  slice_sample(n = 10000)
+vis_miss(train_data2_sample)
+
+#proportion of missing data relative to observed
+colSums(is.na(train_data2))/nrow(train_data2)
+#using correlation analysis 
+
+imputed_data <- missForest(train_data2)
+
+
+

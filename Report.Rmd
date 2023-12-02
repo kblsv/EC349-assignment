@@ -214,7 +214,7 @@ To increase the accuracy further, I find the confusion matrix to see where the m
 
 To improve accuracy and prediction for a wider range, I proceed with feature engineering and explore more variables to see if that improves prediction. If not, I will check other models. 
 
-I am focusing on numeric and categorical variables which are present in model2_data. There are 46 variables (outside of logit_model11) to pick from. Firstly, I focus on finding variables that may be better at predicting lower ratings to balance out the confusion matrix. To do that, I perform univaraite analysis where I compare mean star ratings across groups for each predictor and thus see how average rating changes with different values of predictors. I will then pick variables that show significant variation in mean star ratings across categories. 
+I am focusing on numeric and categorical variables which are present in model2_data. There are 46 variables (outside of logit_model11) to pick from. Firstly, I focus on finding variables that may be better at predicting lower ratings to balance out the confusion matrix. To do that, I perform univariate analysis where I compare mean star ratings across groups for each predictor and thus see how average rating changes with different values of predictors. I will then pick variables that show significant variation in mean star ratings across categories. 
 *for continuous variables, i firstly bin them to group them.
 
 When observing useful, funny, and cool from review_data:
@@ -257,6 +257,26 @@ The correlations show a range of values. I attempt to find variables that have a
 Thus, I include DriveThru, AcceptsInsurance, GoodForDancing, HasTV, and BikeParking. 
 Alternatively, I could include Open24Hours, (AcceptsInsurance, GoodForDancing), HappyHour, WheelChairAccessible, RestaurantsPriceRange2, BusinessAcceptsCreditCards
 
+I do multiple variations of the model, iteratevely adding and removing variables. Addition of certain variables to the model seems to cause issues. For example, every time I add AcceptsInsurance, it causes the following error: 
+Error in family$linkfun(mustart) : 
+  Argument mu must be a nonempty numeric vector
+Adding WheelchairAccessible, OutdoorSeating, RestaurantsPriceRange2 leads to rank-deficiency and 
+Error in polr(formula = stars ~ average_stars + business_stars + Open24Hours +  : 
+  'start' is not of the correct length
+Adding RestaurantsCounterService leads to:
+Error in polr(stars ~ average_stars + business_stars + Open24Hours + cool +  : 
+  attempt to find suitable starting values failed
+In addition: Warning messages:
+1: glm.fit: algorithm did not converge 
+2: glm.fit: fitted probabilities numerically 0 or 1 occurred 
+
+The best combination that causes no errors and still adds predictive power is seen in logit_model22. The presence of additional business attributes leads to better improvement compared to an expanded model without business attributes (logit_model11). Logit_model22 seems to performs the best so far, with residual deviance of 569, AIC of 601, and multiple significant t-values. 
+
+however, when validating this model faces issues and gives out an accuracy of 0.
+
+This model may likely be influenced by a large number of NAs. I attempt other models, such as decision trees, to see if this can be improved.
+
+All of the various models I have done so far perform only marginally better in decision trees. This may be due to the high variance of trees as they are prone to overfitting due to continuous splitting. As a result, I attempt random forests. 
 
 
 
