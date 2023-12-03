@@ -895,17 +895,40 @@ summary(test_predictions11)
 install.packages('tree')
 library(tree)
 #modelling
+
+#OG model, test accuracy of 
 decisiontree1<-tree(stars ~ average_stars + business_stars + Open24Hours, data=train_data2)
-#2nd one accuracy of 0.5127 
-decisiontree1<-tree(stars~average_stars + business_stars + Open24Hours
-                   +cool + user_review_count + fans + compliment_photos +
-                     review_count, data=train_data2)
+#New model with more variables, test accuracy  0.5108
+decisiontree1<-tree(stars ~ average_stars+business_stars+cool+user_review_count+
+                      +fans+compliment_photos+
+                      +GoodForDancing+HasTV+BikeParking, data=train_data2)
+
+#3rd model only using relevant (based on range of mean star ratings across groups) variables with less than 50% missing data  
+#test accuracy of 0.4653
+decisiontree1<-tree(stars~ business_stars+cool+BusinessAcceptsCreditCards+BikeParking+
+                      RestaurantsPriceRange2+HasTV, data=train_data2)
+
+#4th model only using variables (not neccessarily relevant) with less than 50% missing data
+#accuracy 0.4653
+decisiontree1<-tree(stars~useful+funny+cool+business_stars+review_count+is_open+BusinessAcceptsCreditCards+BikeParking+
+                      RestaurantsPriceRange2+HasTV, data=train_data2)
 #first one accuracy of 0.4746 decisiontree1<-tree(stars ~ average_stars + business_stars + Open24Hours
  #                   +cool + user_review_count + fans + compliment_photos +
   #                    review_count+Open24Hours+HappyHour+Caters+
    #                   HasTV + BikeParking, data=train_data2)
+decisiontree1 <-tree(stars~average_stars + business_stars + DriveThru + GoodForDancing + HasTV+BikeParking, data=train_data2)
 plot(decisiontree1)
 text(decisiontree1,pretty=1)
+#validation - comparing training and test:
+predictions_train <-predict(decisiontree1, train_data2, type='class')
+predictions_test <-predict(decisiontree1, test_data2, type='class')
+predictions_train <-factor(predictions_train, levels = levels(train_data2$stars), ordered = TRUE)
+predictions_test <-factor(predictions_test, levels = levels(test_data2$stars), ordered = TRUE)
+
+accuracy_train<-sum(predictions_train==train_data2$stars)/nrow(train_data2)
+accuracy_test<-sum(predictions_test==test_data2$stars)/nrow(test_data2)
+print(accuracy_train)
+print(accuracy_test)
 #validation
 test_predictions3 <-predict(decisiontree1,newdata=test_data2,type='class')
 summary(test_predictions3)
@@ -917,16 +940,17 @@ print(accuracy3)
 install.packages('randomForest')
 library(randomForest)
 
-randomforest1<-randomForest(stars ~ business_stars +cool + review_count +is_open
-                            +RestaurantsPriceRange2,
+randomforest1<-randomForest(stars ~ useful +cool + funny+ latitude+longitude+review_count+business_stars+is_open,
                             data=train_data2,
+                            na.action='na.omit',
                             ntree=50,
                             mtry=2)
-
+randomForest::importance(randomforest1)
 test_predictions4<-predict(randomforest1,newdata=test_data2)
 test_predictions4 <-factor(test_predictions4, levels = levels(test_data2$stars), ordered = TRUE)
 accuracy4<-sum(test_predictions4==test_data2$stars)/nrow(test_data2)
 print(accuracy4)
+print(test_predictions4)
 library(caret)
 confusionMatrix <-table(Predicted=test_predictions4, Actual = test_data2$stars)
 print(confusionMatrix)
@@ -955,5 +979,20 @@ colSums(is.na(train_data2))/nrow(train_data2)
 
 imputed_data <- missForest(train_data2)
 
+#forest package doesn't deal with missing data, so i use the 'xgboost' package
+install.packages('xgboost')
+library(xgboost)
+train_matrix<-xgb.DMatrix(data=as.matrix(train_data2[,-which(names(train_data2)=='stars')]), label=as.numeric(train_data2$stars)-1)
+test_matrix<-xgb.DMatrix(data=as.matrix(test_data2[,-which(names(test_data2)=='stars')]), label=as.numeric(test_data2$stars)-1)
 
+xgb1<-xgboost(data=train_matrix,max.depth=3,eta=1,nrounds=50,objective='multi:softprob',num_class=5)
 
+#validating
+train_predictions5<-predict(xgb1, train_matrix, type='response')
+train_predictions5_class<-max.col(matrix(train_predictions5,nrow=nrow(train_matrix), byrow=TRUE))
+train_accuracy5<-sum(train_predictions5_class==as.numeric(train_data2$stars))/length(train_predictions5_class)
+test_predictions5 <-predict(xgb1, test_matrix)
+test_predictions5_class<-max.col(matrix(test_predictions5,nrow=nrow(test_matrix),byrow=TRUE))
+accuracy5<-sum(test_predictions5_class==as.numeric(test_data2$stars))/length(test_predictions5_class)
+library(caret)
+cm5<-confusionMatrix(factor(test_predictions5_class),factor(test_data2$stars))

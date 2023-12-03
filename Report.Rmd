@@ -276,10 +276,16 @@ however, when validating this model faces issues and gives out an accuracy of 0.
 
 This model may likely be influenced by a large number of NAs. I attempt other models, such as decision trees, to see if this can be improved.
 
+In decision trees, some variables with a very large proportion of NAs still cause errors (e.g. DriveThru with 90% missing variables, AcceptsInsurance with 98%) so I remove them.
 All of the various models I have done so far perform only marginally better in decision trees. This may be due to the high variance of trees as they are prone to overfitting due to continuous splitting. As a result, I attempt random forests. 
+However, random forests are very computationally intense so I stick to decision trees. 
+These show relatively low accuracy. I therefore attempt further feature engineering and different combinations of predictor variables to improve predictions.
 
+Perhaps the overfitting associated with decision trees is the limiting factor in accuracy. I attempt decision trees. Initially, I decide to look at randomForest package which doesn't deal with NA values and to experiment, I input all the values that don't have any missing data, resulting in an accuracy of 53. I find some existing features like high importance of business stars, but also find that latitude, longitude, and review_count are relatively significant. Furthermore, while is_open isn't that significant, it marginally improves the performance of the model. 
 
+The randomForest package only deals with complete data, which is an issue since there is a large proportion of data that are missing, and imputing it based on central tendencies for example would introduce bias since I also don't have extensive domain knowledge on what imputing values should be. Thus, I investigate packages that internally deal with missing data. 'missForest' is causing issues in memory, so I research for the ones that are less computationally intensive and I pick XGBoost, which also simultaneously improves predictive power through boosting. 
 
+Forest package doesn't deal with missing data. In addition, I would like to improve my accuracy and predictability using boosting. I pick boosting compared to other variations because there has been some uncertainty in terms of which predictors are more significant than others due to for example missing data. Boosting will average over different predictors and remove bias. In addition, it performs better than bagging usually.
 # Deployment
 
 # Feedback
