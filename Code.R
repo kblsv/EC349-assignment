@@ -1,6 +1,8 @@
 #Installed homebrew, installed git, initialised git, pushed the project onto GitHub repository.
 setwd("/Users/ekaterina/Documents/EC349 project")
 
+tinytex::install_tinytex(force = TRUE)
+options(repos=list(CRAN="https://cran.rstudio.com"))
 install.packages('jsonlite')
 install.packages('ggplot2')
 install.packages('caret')
@@ -52,19 +54,10 @@ summary(user_data_small$review_count)
 summary(user_data_small$average_stars)
 
 #stars histogram
-ggplot(review_data_small, aes(x=stars)) +
-  geom_histogram(binwidth=1, fill='blue', color='black') +
-  ggtitle("Distribution of Stars Ratings")
+ggplot(review_data_small, aes(x=stars))+geom_histogram(binwidth=1, color='black')+ggtitle("Distribution of 'stars'")
+ggplot(user_data_small,aes(x=review_count))+geom_histogram(binwidth =1,color = "black") +ggtitle("Distribution of review_count") +xlab("review_count") +ylab("frequency")
+ggplot(user_data_small, aes(x=average_stars))+geom_histogram(binwidth = 0.5, color = "black") +ggtitle("Distribution of average_stars")+xlab("average_stars")+ylab("frequency")
 
-#review_count boxplot
-ggplot(user_data_small, aes(y = review_count)) +
-  geom_boxplot(fill = "blue", color = "black") +
-  ggtitle("Boxplot of Review Count")
-
-#average_stars boxplot
-ggplot(user_data_small, aes(y = average_stars)) +
-  geom_boxplot(fill = "green", color = "black") +
-  ggtitle("Boxplot of Average Stars")
 
 # DIAGNOSTIC
 
