@@ -8,296 +8,162 @@ date: "`r Sys.Date()`"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Data Science Methodology
 
-For this project I have selected John Rollins' General DS Methodology. 
+# Data Science Methodology
 
-The reasons for that are as follows: 
-* Separate emphasis on analytic approach. Deep exploration of analytics and examining of data before preparing it is valuable when we have multiple datasets where different variables could have an impact on user reviews. It is crucial to examine any preliminary trends and correlations to see which variables are more relevant, and which ones may create unneccessary noise that will limit predictability.
-* Explicit separation of data requirements and collection, unlike in CRISP-DM which has a broad Data understanding stage. Useful for analysis of types of data needed, which is relevant for handling Yelp's diverse and complex datasets.
-* Tailored data preparation. CRISP-DM may not delve as deeply into specific difficulties in multifaceted datasets. This is important as Yelp's datasets are complex and have unstructured text and different business and user attributes.
-* CRISP-DM and others may be closer to industry approach, whereas this project is for academic purposes.
+I have chosen John Rollins' General Data Science Methodology for several reasons. 
+Firstly, it considers Analytic Approach separately. With complex datasets but limited domain knowledge, having an emphasis on examining preliminary trends within descriptive and diagnostic analytics helped me identify variables with predictive power. 
+Secondly, it is iterative which I applied by evaluating and refining my models, leading to improvement in accuracy. 
+Thirdly, it is holistic, focusing both on technical aspects of data analysis and problem understanding. Examining the context of the problem as well as technical aspects was useful in ensuring my models are not only robust but also align with real-world context and potential applications.
 
-I applied this method in the following ways:
-* 
+# Problem Understanding
 
-## Business Understanding
+The project goal is to use data from Yelp to predict how users like different establishments in terms of the star ratings in reviews. The main objective is to identify relevant variables that are likely to influence users’ star ratings and thus have the most predictive power.
 
-The goal is to predict user reviews (the amount of stars given by a user to a business) based on data from Yelp. 
+# Analytic Approach
 
-## Analytic Approach
+I begin by examining the various datasets to identify which data can and should be used to predict ‘stars’. 
 
-Firstly, it is important to see how the data can be used to make that prediction. This can be done through examining trends and correlations between stars and other variables. 
+## Descriptive Analytics
 
-# Descriptive analytics
-
-I lay the foundation for predictive modelling by examining relevant data. For example, I examine the distributions and whether data is skewed.
-
-Firstly, examine the variable of interest: 'stars' in review_data_small.
-The mean is 3.748 and median is 4, suggesting that ratings overall are skewed towards the higher end of the 1 to 5 scale.
+### review_data_small
+‘stars’ have a mean of 3.748 and median of 4, showing that the ratings overall seem to be skewed towards the higher end. The most popular rating is 5, followed by 4 and 1 (Figure 1). This may be explained by the fact that people tend to leave reviews when they had a particularly positive or negative experience. This skewness may also result in a bias towards positive reviews in the data. 
 ```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
+
 summary(review_data_small$stars)
+
+ggplot(review_data_small, aes(x=stars))+geom_histogram(binwidth=1, color='black')+ggtitle("Distribution of 'stars'")
 ```
-Additionally, in this dataset, 'useful', 'funny', and 'cool' indicate the number of times other users found the review useful, funny, or cool, which may be relevant. As these are direct reactions to the review, this may be more relevant than, for example, user-level counts of 'useful', 'funny', and 'cool' in the user_data_small dataset.
+‘useful’, ‘funny’, and ‘cool’ may be indicative of the star rating as they are direct reactions to the review. Given that both the first quartile and median for all three is 0, and that the third quartile for two of them is 0, there is a higher level of sparsity for these variables. 
 ```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
 summary(review_data_small$useful)
 summary(review_data_small$funny)
 summary(review_data_small$cool)
 ```
-Given that both the 1st quartile and median for all three is 0, as well as that 3rd quartile for two of them is 0, suggests that there is a high level of sparsity in the feedback data.
+### user_data_small
 
-Considering the large number of reviews don't receive feedback, it is useful to look other data that may predict stars in reviews, outside of the review_data_small dataset.
+User features and history may be predictive of the reviews they tend to leave. 
 
-For example, user history may affect the stars they leave. This includes review_count and average_stars in user_data_small.
+‘review_count’ data ranges broadly, with a small number of users who are highly active. Higher ‘review_count’ may be associated with more nuanced reviews and consistent rating behaviours. The histogram shows a long-tail distribution with a small number of users having a high number of reviews. 
+
+‘average_stars’ shows most users rating positively and having extreme ratings. This data can provide context on a user’s rating behaviour. 
 
 ```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
+
 summary(user_data_small$review_count)
+
+ggplot(user_data_small,aes(x=review_count))+geom_histogram(binwidth =1,color = "black") +ggtitle("Distribution of review_count") +xlab("review_count") +ylab("frequency")
+
 summary(user_data_small$average_stars)
+
+ggplot(user_data_small, aes(x=average_stars))+geom_histogram(binwidth = 0.5, color = "black") +ggtitle("average_stars distribution")+xlab("average_stars")+ylab("frequency")
 ```
-The review_count data ranges broadly, with a small number of users who are highly active. The more active a user is, the more nuanced their reviews may be and they may have consistent rating behaviours, which could affect 'stars'. 
-The average_stars portrays a slight skew in distribution, where most users rate positively. This data can provide context on a user's rating behaviour, which may predict their future ratings. 
+Instances of skewness observed above may result in bias in my model, and it may be less predictive for example for unextreme ratings like 3, or users with low amount of reviews. 
 
-Visualising the distribution of Stars Ratings confirms the skewness. The most popular rating is 5, followed by 4 and then 1. This may be explained by the fact that people tend to leave reviews when they had a particularly positive experience, or a very negative one. There may be a bias towards positive reviews in the data. 
+## Diagnostic Analytics
+
+I identify patterns through correlation analysis to see **why** ‘stars’ may behave a certain way. Correlations below are between ‘stars’ and variable mentioned. 
+
+### review_data_small
+‘useful’ and others: less than 0.1 in absolute values, suggesting they may be poor predictors.
 ```{r}
-# Stars histogram
-ggplot(review_data_small, aes(x=stars)) +
-  geom_histogram(binwidth=1, fill='blue', color='black') +
-  ggtitle("Distribution of Stars Ratings")
-```
-
-```{r}
-# Review count and average stars histograms
-library(ggplot2)
-
-ggplot(user_data_small, aes(x = review_count)) +
-  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
-  ggtitle("Distribution of Review Count") +
-  xlab("Review Count") +
-  ylab("Frequency")
-
-ggplot(user_data_small, aes(x = average_stars)) +
-  geom_histogram(binwidth = 0.1, fill = "green", color = "black") +
-  ggtitle("Distribution of Average Stars") +
-  xlab("Average Stars") +
-  ylab("Frequency")
-```
-The histograms for review count and average stars confirm previous observations about skewness. 
-For average stars, the distribution indicates that users are more likely to have extreme ratings (either very high or very low). 
-The review count has a long-tail distribution with a small number of users having a high number of reviews and a vast majority having small number of reviews. For predicting stars, the number of reviews may be less predictive for users with fewer reviews since the average rating could be significantly influenced by a small number of extreme reviews.
-
-# Diagnostic Analytics
-
-It is important to consider **why** the star ratings are a certain way, which we can do by also including business_data into our analysis and seeing correlations between different variables. 
-
-Correlations between stars and other variables in review_data_small are quite weak, suggesting these may be poor predictors of 'stars'. However, this does not mean they have no predictive power at all and they may still contribute to the model.
-```{r}
-correlation_useful <- cor(review_data_small$stars, review_data_small$useful, use = "complete.obs")
-correlation_funny <- cor(review_data_small$stars, review_data_small$funny, use = "complete.obs")
-correlation_cool <- cor(review_data_small$stars, review_data_small$cool, use = "complete.obs")
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
 print(correlation_useful)
 print(correlation_funny)
 print(correlation_cool)
 ```
 
-To calculate correlation vectors between 'stars' and other datasets, I rename any conflicting columns and merge review_data_small with each other dataset that contains int data based on user_id.
-
-When merging review and user data, the following correlations between 'stars' and variables in user data can be observed: 
+### user_data_small
+Most of the correlations with ‘stars’ are weak except for ‘average_stars’ (0.582), suggesting higher predictive power. 
 ```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
 print(corr_user)
 ```
-Here most variables also have a relatively weak correlation, except for average_stars, which have a correlation of 0.58. 
 
-Correlation coefficient between 'stars' and variables in 'compliment_count' in tip_data:
+### tip_data
+‘compliment_count’: very low correlation (0.003).
 ```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
 print(corr_tip)
 ```
 
-In business data, there are a lot of variables and while all of these could improve prediction, more flexible models reduce bias but increase variance and MSE. Thus, it may be important to focus more on variables like attributes within business, as opposed to latitude or longitude. 
+### business_data
 
-For numerical variables in business_data, business_stars seems to have a strong correlation with 'stars'. 
-
+For numerical variables in business data there is generally weak correlation except for ‘business_stars’ which has correlation of 0.489 with ‘stars’. 
 ```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
 print(corr_numerical_business)
 ```
 
-I also look at categorical variables that include 'True' and 'False' and some other simple categories. Upon examining the dataset, some attributes (such as HairSpecializesIn) have more than a 100 unique categorisations, so I focus only on those that have a few, such as 'True' and 'False', such as Open24Hours. Many of them also have 'None' which I convert to NA.
+For attributes, I look at relatively simple variables. Certain attributes have >100 unique categorisations, which can increase complexity of the model and result in overfitting. The correlations coefficients suggest an overall weak to moderate relationship between the selected business attributes and ‘stars’.
 ```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
 print(corr_binary_business)
 ```
-The correlations coefficients suggest an overall weak to moderate relationship between these business attributes and stars. 
 
-Most variables across datasets have a mixed and small relationship with stars. Hence, our next step would be to take Predictive Analytics approach. 
+# Data Understanding and Organisation
 
-## Data Understanding & Organisation
+## Requirements
+Incorporating variables from multiple datasets reduces bias while enhancing predictive accuracy, which is confirmed in my analysis. To balance this with the risk of fitting noise and computational constraints, I prioritised relevant, numeric, and simple categorical data from smaller datasets. 
 
-# Data Requirements
-Since it is hard to establish relationships based on descriptive and diagnostic approaches, I use some data from more than one dataset. I definitely include data that had strong/moderate correlations. I also use other data since correlation does not imply causation and other variables may still serve predictive power. However, I focus more on data that is likely to be relevant, such as informaiton about the user, rather than check-in data, to reduce variance and manage complexity.
+## Collection
+Certain data was collected through merging datasets, allowing me to explore patterns for each dataset and expand the model by incrementally adding features. 
 
-# Data Collection
-
-Secondary data is collected on Yelp. Due to crashing and no progress in installation of original datasets, small datasets are used.
-
-Some variables have incomplete or unavailable data. 
-
-# Data Understanding 
-There are 5 datasets.
-
-# Data Preparation
-
-## Validation & Deployment
-
-# Modelling
-In order to minimise the risk of overfitting (and thus improve predictability) and computational resources overload, I start with a model with few predictors that are hypothetically likely to impact 'stars'. This will also allow me to understand the impact of each new variable I add iteratively. 
-
-The variables that have had strong or moderate correlation (bigger than 0.1) with 'stars' may have good predictive power. These include:
-*average_stars in user_data_small (correlation coefficient of 0.58)
-*business_stars (0.49), DriveThru (-0.21), and Open24Hours (-0.26) in business_data
-
-These variables could predict 'stars' due to various explanations:
-*average stars of a user may be a strong indicator of their rating behaviour as it is possible that users who generally give higher/lower ratings will continue to do so
-*a user's rating may align closely with the general consensus of other users represented by business stars
-*DriveThru may have negative correlation with stars potentially due to the type of business being of poorer quality, such as fast food restaurants
-*Open24Hours may be negatively correlated with stars due to poorer quality of service during off-peak hours, providing insights into how operational hours may impact user perceptions
-
-The value I am trying to predict is categorical and discrete. 'stars' are not continuous and are classified into 5 groups: 1, 2, 3, 4, and 5 stars. A linear model like Ridge or LASSO regression may not limit predictions to these groups. Hence, I use a non-linear model, specifically multinomial logit. Furthermore, the ratings are ordered so I will also use an ordered logit. 
-
-Firstly, I split the model1_data dataset into test and training using sample(). The test dataset, test_data, contains 10,000 observations, whereas the train dataset, train_data, contains 138,805 observations.
-
-Upon the first attempt, the following error was produced:
-> logit_model1 <- polr(stars ~ average_stars + business_stars + DriveThru + Open24Hours, data = train_data, method = 'logistic')
-Error in polr(stars ~ average_stars + business_stars + DriveThru + Open24Hours,  : 
-  attempt to find suitable starting values failed
-In addition: Warning messages:
-1: glm.fit: algorithm did not converge 
-2: glm.fit: fitted probabilities numerically 0 or 1 occurred 
-
-This may potentially be due to the number of missing (NA values) or their combination.
-
-I do different variations of the model for these variables and some common trends can be seen. Across all of them, average_stars and business_stars seem to have significant coefficients and high t-values. On the other hand, when observed separately, each of Open24Hours and DriveThru seem to be unsignificant. 
-
-In terms of measures of fit such as residual deviance and AIC, logit_model11 has the lowest (970.79 and 984.79 respectively) suggesting it might be the best in terms of balancing fit and complexity. 
-
-Suppose \( Y \in \{1, 2, 3, 4, 5\} \)
-
+## Understanding
+The datasets exhibited varying levels of complexity and a lot of missing data. Imputing without domain knowledge about variables, or contextual reason for why they are missing, could skew the data from true distributions, introducing biases. Thus, I focused on using a diverse set of variables and models that internally deal with NA values. 
 ```{r}
-summary(logit_model11)
-summary(logit_model12)
-summary(logit_model13)
-summary(logit_model14)
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
+#Missing data visualisations
+gg_miss_var(model3_data)
+miss_var_summary(model3_data)
 ```
 
-In each case there is a large amount of missing observations that get removed, potentially causing bias in coefficients. When using logit model14 with just average_stars, there are 1110199 missing observations, however when just analysing business_data there are no missing observations. This suggests that majority of missing values come from average_stars.
+## Preparation  
+I prepared the data by renaming conflicting columns, converting Boolean variables to binary, converting between variable types, and creating dummy variables. 
 
-It is difficult to decide if missing data should be dealt with imputation or if it should be ignored. It is possible that Yelp review data has missing at random, but to be sure I observe patterns of missing data more closely.  
+# Modelling
 
-Upon close observation, stars and business_stars are the only variables so far in the model that are not missing data. Imputation is possible e.g. for average_stars I can substitute all NA values with mean or median. However, this means imputing around a million observations when average_stars in the original user_data_small dataset only has around 400,000 observations. Thus putting a mean/median for the missing observations can significantly skew the data from its true distribution or introduce biases. Furthermore, there is not contextual information about why the data is missing. 
+## Model 1 – Ordered Multinomial Logit
+To minimise overfitting and understand the impact of each variable I add, starting with a limited set of features having the highest correlation coefficients with ‘stars’.
 
-As a result of that, I introduce other variables that are not strongly correlated from previous diagnostic analytic approach, but they may have less missing values and still contain some predictive power. The data for this new, more flexible model is stored in model2_data. This doesn't include tip_data and checkin_data due to a many-to-many relationship error and the fact that, for example, compliment_count had very low correlation with 'stars' so the predictability of the model isn't significantly worsened.
+I use an ordered multinomial logit due to the discrete, ordered nature of stars which may not be accounted for by linear models like ridge. A nonlinear model will also capture more complex patterns. 
 
-Before using a more complex, combined final model, I initially conduct regressions between 'stars' and all variables within each separate dataset to explore potential predictors.This way I systematically evaluate the contribution of each dataset.
+Across several model variations, average_stars and business_stars have significant coefficients and high t-values. logit_model11 has the lowest residual deviance (970.79) and AIC (984.79), suggesting it may be the best in terms of balancing fit and complexity. Accuracy of logit_model11 is 0.6, above the baseline accuracy (0.4653). However, the confusion matrix reveals the model struggling with lower ratings, potentially due to the skewed distributions of ‘stars’. Furthermore, the wide confidence interval suggests high uncertainty. The removal of many missing observations may overinflate accuracy and not be applicable to large amounts of real-life data. Therefore, I explore further variables and models. 
+```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
+#logit_model11 (model variation with lowest) results and validation
+summary(logit_model11) 
+```
 
-Upon attempting regressions with all the attributes from business_data, i faced issues in multiple models including logit and ridge. One possibility is the number of missing values that is present for each attribute. This is added to the fact that the number of 'stars' observations in review_data_small is already significantly larger than the number of business_data observations. Imputing or ignoring NA values for the missing observations may introduce bias and inaccuracy into the model.
+## Exploration of variables
 
-Another issue i faced is rank-deficiency warning, which may have caused problems in calculating Hessian values. For that, I assess multicollinearity between predictors for each dataset using variance inflation factor.
+Next, I considered all variables, excluding those with near-zero correlations or complex relationships. Many showed weak correlation with ‘stars’ but may still capture useful patterns and help in predicting lower ratings. I check for multicollinearity and to observe relevance, I perform univariate analysis to compare mean star ratings across groups for each predictor. 
+```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
+# Mean star ratings
+print(mean_stars_by_useful)
+print(mean_stars_by_funny)
+```
 
-## Evaluation
+# Model 2 – XGBoost
 
-After training the data in various models, I perform validation by predicting 'stars' for the 10,000 test observations. 
+XGBoost deals with missing values internally, and it also should improve my predictive power through boosting as it averages over different predictors by fitting a decision tree on the residuals. This is particularly useful for some features where the significance isn’t obvious but with additional boosts, they may improve predictive power. Using all the variables so far, the model achieved an accuracy of 0.54 with no evident overfitting, again showing stronger performance for higher ratings through the high true positives, sensitivity, and precision. Adding other variables marginally improves accuracy, but visualising the importance reveals significance of features not previously considered. 
 
-For ordered multinomial models, I firstly predict outcomes on the test data and then evaluate the model's performance through accuracy and confusion matrix. 
+```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
+#visualising importance
+xgb.plot.importance(importance_xgb2)
+```
+Since there is no overfitting and the features are more diverse, I tune the hyperparameters of the model. Increasing the depth to 9 while maintaining eta at 0.01, strikes a balance between fit and bias. To balance out the uneven distribution of ratings, I introduce subsampling to increase randomness, potentially improving predictions for lower ratings. The resulting accuracy is 0.5472 and shows no overfitting when compared to train accuracy.
+```{r}
+source("/Users/ekaterina/Documents/EC349 project/Code.R")
+#XGBoost results and validation
+print(cm6)
+```
 
-Firstly, I evaluate the performance of logit_model11, which had the lowest residual deviance and AIC, as well as significant coefficients, suggesting it may be the best at predicting compared to the others. 
+# Biggest Challenge
 
-After excluding missing values, I find accuracy = 0.6, meaning that the model correctly predicted the rating for 60% of cases in test dataset. To interpret this further, I compare this to a baseline model. The accuracy for a baseline model is 0.4653, showing that logit_model11 is doing better than a naive approach and that the predictors contribute significantly to predictive ability.
-
-To increase the accuracy further, I find the confusion matrix to see where the model performs better or worse. This shows the model performing much better for classes 4 and 5, and struggles with lower ratings predictions. Furthermore, the confidence interval (0.1466, 0.9473) suggests a high level of uncertainty in accuracy estimate.
-
-To improve accuracy and prediction for a wider range, I proceed with feature engineering and explore more variables to see if that improves prediction. If not, I will check other models. 
-
-I am focusing on numeric and categorical variables which are present in model2_data. There are 46 variables (outside of logit_model11) to pick from. Firstly, I focus on finding variables that may be better at predicting lower ratings to balance out the confusion matrix. To do that, I perform univariate analysis where I compare mean star ratings across groups for each predictor and thus see how average rating changes with different values of predictors. I will then pick variables that show significant variation in mean star ratings across categories. 
-*for continuous variables, i firstly bin them to group them.
-
-When observing useful, funny, and cool from review_data:
-*reviews not marked as useful or funny tend to have higher star ratings
-*reviews marked as 'cool' are more likely to have higher star ratings
-*cool has more distinct star ratings
-*all three capture a similar aspect of the data and including all three may introduce multicollinearity
-Therefore I add 'cool' as a predictor in the 2nd model. 
-
-For the first few variables in user_data:
-*A user's review count has an increasing trend with higher stars
-*Users with more cool, funny, useful marks also have higher stars - however, this has a smoother relationship than previously described 'cool' and it may also cause multicolliniearity with 'cool'. User engagement metrics may be related to ratings for individual reviews.
-*Similar trend is seen in fans
-*The very close direct relationship between average_stars and stars explains why it has good predictive power in logit_model11
-For the above reasons, I add user_review_count and fans as new predictors.
-
-For compliment data:
-*Average star rating increases as the compliment count increases for all types of compliments
-*The trends vary by how strong/distinct they are
-*I pick the ones with the strongest trends and calculate correlations so I can use multiple wihout causing multicolliniearity
-All of them have moderate to strong correlation, so I pick the variable with the strongest trend (i.e. highest range of mean ratings of 0.2918) is compliment_photos. 
-
-For business data:
-*business_data shows a direct close trend, confirming its predictive power significance in logit_model11
-*review_count shows a weaker but still a positive trend with mean stars
-*RestaurantsPriceRange2 shows a clear trend with star ratings so I will include it
-*I also calculate correlations here since there is a large number of potential predictors to select from as many show a clear trend with stars
-The correlations show a range of values. I attempt to find variables that have a significant impact on star ratings but minimal multicolliniearity. Firstly I pick on variables that have a big difference in star rating depending on category:
-*The first 15 include: Open24Hours, DriveThru, AcceptsInsurance, GoodForDancing, HasTV, HappyHour, BikeParking, WheelchairAccessible, OutdoorSeating, RestaurantsCounterService, RestaurantsPriceRange, BusinessAcceptsCreditCards, BusinessAcceptsBitcoin, RestaurantsTakeOut, BYOB.
-*Open24Hours is correlated with multiple variables so I avoid it
-*DriveThru is only strongly correlated with Open24Hours and RestaurantsPriceRange2
-*HasTV is correlated strongly with Open24Hours,HappyHour, RestaurantsCounterService, BYOB(moderatley)
-*GoodForDancing is moderately/strongly correlated with RestaurantsCounterService and pricerange2
-*HappyHour with HasTV, counterservice, drivethru,pricerange, BYOB
-*BikeParking with Open24Hours, outdoorseating
-*Wheelchairaccess with accepts insurance, counterservice moderately and BYOB
-*OutdoorSeating with open24, acceptsinsurance, happyhour, bikeparking,etc
-*PriceRange2
-
-Thus, I include DriveThru, AcceptsInsurance, GoodForDancing, HasTV, and BikeParking. 
-Alternatively, I could include Open24Hours, (AcceptsInsurance, GoodForDancing), HappyHour, WheelChairAccessible, RestaurantsPriceRange2, BusinessAcceptsCreditCards
-
-I do multiple variations of the model, iteratevely adding and removing variables. Addition of certain variables to the model seems to cause issues. For example, every time I add AcceptsInsurance, it causes the following error: 
-Error in family$linkfun(mustart) : 
-  Argument mu must be a nonempty numeric vector
-Adding WheelchairAccessible, OutdoorSeating, RestaurantsPriceRange2 leads to rank-deficiency and 
-Error in polr(formula = stars ~ average_stars + business_stars + Open24Hours +  : 
-  'start' is not of the correct length
-Adding RestaurantsCounterService leads to:
-Error in polr(stars ~ average_stars + business_stars + Open24Hours + cool +  : 
-  attempt to find suitable starting values failed
-In addition: Warning messages:
-1: glm.fit: algorithm did not converge 
-2: glm.fit: fitted probabilities numerically 0 or 1 occurred 
-
-The best combination that causes no errors and still adds predictive power is seen in logit_model22. The presence of additional business attributes leads to better improvement compared to an expanded model without business attributes (logit_model11). Logit_model22 seems to performs the best so far, with residual deviance of 569, AIC of 601, and multiple significant t-values. 
-
-however, when validating this model faces issues and gives out an accuracy of 0.
-
-This model may likely be influenced by a large number of NAs. I attempt other models, such as decision trees, to see if this can be improved.
-
-In decision trees, some variables with a very large proportion of NAs still cause errors (e.g. DriveThru with 90% missing variables, AcceptsInsurance with 98%) so I remove them.
-All of the various models I have done so far perform only marginally better in decision trees. This may be due to the high variance of trees as they are prone to overfitting due to continuous splitting. As a result, I attempt random forests. 
-However, random forests are very computationally intense so I stick to decision trees. 
-These show relatively low accuracy. I therefore attempt further feature engineering and different combinations of predictor variables to improve predictions.
-
-Perhaps the overfitting associated with decision trees is the limiting factor in accuracy. I attempt decision trees. Initially, I decide to look at randomForest package which doesn't deal with NA values and to experiment, I input all the values that don't have any missing data, resulting in an accuracy of 53. I find some existing features like high importance of business stars, but also find that latitude, longitude, and review_count are relatively significant. Furthermore, while is_open isn't that significant, it marginally improves the performance of the model. 
-
-The randomForest package only deals with complete data, which is an issue since there is a large proportion of data that are missing, and imputing it based on central tendencies for example would introduce bias since I also don't have extensive domain knowledge on what imputing values should be. Thus, I investigate packages that internally deal with missing data. 'missForest' is causing issues in memory, so I research for the ones that are less computationally intensive and I pick XGBoost, which also simultaneously improves predictive power through boosting. 
-
-Forest package doesn't deal with missing data. In addition, I would like to improve my accuracy and predictability using boosting. I pick boosting compared to other variations because there has been some uncertainty in terms of which predictors are more significant than others due to for example missing data. Boosting will average over different predictors and remove bias. In addition, it performs better than bagging usually.
-# Deployment
-
-# Feedback
-
-## Data and Method
-
-There are 5 datasets. We observe the number of starts given by a user, which means we can perform supervised learning.
-
-While it is possible to only use the data from User Reviews and make interpretation easier, we may have an issue of underfitting as the model is too simple (e.g. linear, when dataset follows a curved distribution), which may worsen our prediction. If we use all data that is available, it may lead to a flexible model which can fit the data better. However, as the model is made more complicated, variance will increase and it may start fitting noise, increasing Mean-Squared Error (MSE). Therefore, there is another trade-off between bias and variance. 
-
-It is important to pick data that is most relevant 
-
-## Biggest challenge
-
-Preparing data. Business data was especially complex, with many variables in character form when they can be in binary form, and some nested sections which required extracting to perform analysis. It was hard to balance between working around complex data and using as much data as possible. It was also inobvious how to work with nested data, and figure out an efficient code in merging the data for seeing how stars correlates with these. Since the majority of the attributes has True/False data, I decided to move these to binary outcomes.
+Finding the model that works was the biggest difficulty. Logit stopped working on an expanded set of features that had more NAs. With decision trees, only a small number of missing variables could be included and small perturbations to features changed the accuracy and the model a lot due to the sequential approach. Random forests would deal with the oversplitting issue of decision trees by dealing with the correlation part of variance through resampling but the ‘forest’ package doesn’t deal with NA values. I attemped to overcome this issue by imputing variables with missForest but it proved to be computationally intensive and reaching the vector memory limit. Using XGBoost solved the problem as it deals with missing values, but initially it was difficult to find a balance between adding more variables and thus reducing bias or improving robustness, and efficiency.
